@@ -8,76 +8,111 @@
 
 #include <MOM2/Zq.hpp>
 
+#include <MOM2/analysis.hpp>
 #include <MOM2/perens.hpp>
-
-double perens_t::compute_Zq(const qprop_t &prop_inv,const size_t glb_mom)
-{
-  const p_t ptilde=all_moms[glb_mom].p(L).tilde();
-  const double pt2=ptilde.norm2();
-  const qprop_t pslash=qua_slash(ptilde);
-  
-  const double Zq=(prop_inv*pslash).trace().imag()/(12.0*pt2*V);
-  
-  return Zq;
-}
-
-djack_t perens_t::compute_Zq(const jqprop_t &jprop_inv,const size_t glb_mom)
-{
-  djack_t Zq;
-  
-  const p_t ptilde=all_moms[glb_mom].p(L).tilde();
-  const double pt2=ptilde.norm2();
-  const qprop_t pslash=qua_slash(ptilde);
-  
-  for(size_t ijack=0;ijack<=njacks;ijack++)
-    Zq[ijack]=(jprop_inv[ijack]*pslash).trace().imag()/(12.0*pt2*V);
-  
-  return Zq;
-}
 
 vector<perens_t::task_t> perens_t::get_Zq_tasks(const vector<const perens_t*>& ens)
 {
-  vector<const djvec_t*> in_Zq,in_Zq_sig1,in_Zq_QED,in_Zq_sig1_QED;
+  vector<const djvec_t*> in_Zq,in_Zq_QED_rel;
   for(auto &e : ens)
     {
       in_Zq.push_back(&e->Zq);
-      in_Zq_sig1.push_back(&e->Zq_sig1);
       if(pars::use_QED)
-	{
-	  in_Zq_QED.push_back(&e->Zq_QED);
-	  in_Zq_sig1_QED.push_back(&e->Zq_sig1_QED);
-	}
+	in_Zq_QED_rel.push_back(&e->Zq_QED_rel);
     }
   
-  vector<task_t> Zq_tasks={{&Zq,in_Zq,im_r_ilinmom_ind,"Zq",QCD_task},{&Zq_sig1,in_Zq_sig1,im_r_ilinmom_ind,"Zq_sig1",QCD_task}};
+  vector<task_t> Zq_tasks={{&Zq,in_Zq,im_r_ilinmom_ind,"Zq",QCD_task}};
   if(pars::use_QED)
-    {
-      Zq_tasks.push_back({&Zq_QED,in_Zq_QED,im_r_ilinmom_ind,"Zq_QED",QED_task});
-      Zq_tasks.push_back({&Zq_sig1_QED,in_Zq_sig1_QED,im_r_ilinmom_ind,"Zq_sig1_QED",QED_task});
-    }
+    Zq_tasks.push_back({&Zq_QED_rel,in_Zq_QED_rel,im_r_ilinmom_ind,"Zq"+QED_tag_suffix(),QED_task});
   
   return Zq_tasks;
+}
+
+void perens_t::compute_Zq(const bool also_QCD,const bool also_QED)
+{
+  cout<<"Computing Zq"<<endl;
+  
+#pragma omp parallel for
+  for(size_t im_r_ilinmom=0;im_r_ilinmom<im_r_ilinmom_ind.max();im_r_ilinmom++)
+    {
+      const vector<size_t> comps=im_r_ilinmom_ind(im_r_ilinmom);
+      const size_t im=comps[0];
+      const size_t r=comps[1];
+      const size_t ilinmom=comps[2];
+      
+      using namespace sigma;
+      auto sigma1=sigma_ins_getter(im,r,ilinmom,SIGMA1);
+      
+      if(also_QCD) Zq[im_r_ilinmom]=sigma1(LO);
+      
+      if(also_QED)
+	{
+	  needs_to_read_assembled_QED_greenfunctions();
+	  Zq_QED_rel[im_r_ilinmom]=sigma1(QED)/sigma1(LO);
+	}
+    }
+}
+
+void perens_t::interpolate_Zq_to_p2ref(perens_t &out) const
+{
+  cout<<"Interpolating to reference p2 Zq"<<endl;
+  
+  //get ranges
+  double a2p2=pars::p2ref/sqr(ainv);
+  pair<double,double> a2p2minmax=get_a2p2tilde_range_bracketting(linmoms,a2p2);
+  const double p2min=a2p2minmax.first*sqr(ainv);
+  const double p2max=a2p2minmax.second*sqr(ainv);
+  cout<<"p2 range:   "<<p2min<<" - "<<p2max<<endl;
+  
+  //fit points
+  vector<double> x(linmoms.size());
+  djvec_t y(linmoms.size());
+  
+  for(auto &t : out.get_Zq_tasks({this}))
+    {
+      const djvec_t &in=*t.in.front();
+      djvec_t &out=*t.out;
+      const string &tag=t.tag;
+      
+      if(fabs(in[0].ave()-1)<1e-7 and in[0].err()<1e-7)
+	{
+	  cout<<"Skipping interpolation for "<<tag<<endl;
+	  out=in[0];
+	}
+      else
+	for(size_t im_r=0;im_r<im_r_ind.max();im_r++)
+	  {
+	    const vector<size_t> comps=im_r_ind(im_r);
+	    
+	    //take physical units for plot
+	    for(size_t imom=0;imom<linmoms.size();imom++)
+	      {
+		vector<size_t> comps_with_mom=comps;
+		comps_with_mom.push_back(imom);
+		
+		x[imom]=all_moms[linmoms[imom][0]].p(L).tilde().norm2()*sqr(ainv);
+		y[imom]=in[im_r_ilinmom_ind(comps_with_mom)];
+	      }
+	    
+	    //fit and interpolate
+	    const djvec_t coeffs=poly_fit(x,y,2,p2min,p2max);
+	    out[im_r]=poly_eval(coeffs,pars::p2ref);
+	    
+	    //produce plot
+	    const string path=dir_path+"/plots/interpolate_to_p2ref_"+tag+
+	      "_m"+to_string(comps[0])+"_r"+to_string(comps[1])+".xmg";
+	    grace_file_t plot(path);
+	    write_fit_plot(plot,p2min,p2max,bind(poly_eval<djvec_t>,coeffs,_1),x,y);
+	    plot.write_ave_err(pars::p2ref,out[im_r].ave_err());
+	  }
+    }
 }
 
 void perens_t::plot_Zq(const string &suffix)
 {
   cout<<"Plotting all Zq of "<<dir_path<<" for suffix: \""<<suffix<<"\""<<endl;
   
-  auto tasks=this->get_Zq_tasks();
-  
-  djvec_t Zq_QED_rel;
-  djvec_t Zq_sig1_QED_rel;
-  
-  if(pars::use_QED)
-    {
-      Zq_QED_rel=Zq_QED/Zq;
-      Zq_sig1_QED_rel=Zq_sig1_QED/Zq_sig1;
-      
-      tasks.push_back({&Zq_QED_rel,{},im_r_ilinmom_ind,"Zq_QED_rel",QED_task});
-      tasks.push_back({&Zq_sig1_QED_rel,{},im_r_ilinmom_ind,"Zq_sig1_QED_rel",QED_task});
-    }
-  
-  for(auto &t : tasks)
+  for(auto &t : get_Zq_tasks())
     {
       const djvec_t &Z=*t.out;
       const string &tag=t.tag;
@@ -94,103 +129,5 @@ void perens_t::plot_Zq(const string &suffix)
 		out.write_ave_err(p2tilde,Z[im_r_ilinmom_ind({im,r,imom})].ave_err());
 	      }
 	  }
-    }
-}
-
-void perens_t::average_r_Zq(perens_t &out) const
-{
-  cout<<"Averaging r for Zq"<<endl;
-  
-  for(auto &t : out.get_Zq_tasks({this}))
-    {
-      cout<<" "<<t.tag<<endl;
-      
-      const djvec_t &Zq=*t.in.front();
-      djvec_t &Zq_rave=*t.out;
-      
-      for(size_t out_i=0;out_i<out.im_r_ilinmom_ind.max();out_i++)
-	{
-	  const vector<size_t> out_im_r_ilinmom_comp=out.im_r_ilinmom_ind(out_i);
-	  vector<size_t> im_r_ilinmom_comp=out_im_r_ilinmom_comp;
-	  
-	  Zq_rave[out_i]=0.0;
-	  for(size_t r=0;r<nr;r++)
-	    {
-	      im_r_ilinmom_comp[1]=r;
-	      const size_t i=im_r_ilinmom_ind(im_r_ilinmom_comp);
-	      Zq_rave[out_i]+=Zq[i];
-	    }
-	  Zq_rave[out_i]/=nr;
-	}
-    }
-}
-
-void perens_t::average_equiv_momenta_Zq(perens_t &out,const vector<vector<size_t>> &equiv_linmom_combos) const
-{
-  for(size_t i=0;i<out.im_r_ilinmom_ind.max();i++)
-    {
-      const vector<size_t> out_im_r_ilinmom_comp=out.im_r_ilinmom_ind(i);
-      const size_t out_ilinmom_combo=out_im_r_ilinmom_comp[2];
-      
-      for(const auto &t : out.get_Zq_tasks({this}))
-	{
-  	  djack_t &ave=(*t.out)[i];
-  	  ave=0.0;
-  	  for(const size_t ieq : equiv_linmom_combos[out_ilinmom_combo])
-	    {
-	      vector<size_t> in_im_r_ilinmom_comp=out_im_r_ilinmom_comp;
-	      in_im_r_ilinmom_comp[2]=ieq;
-	      const size_t i=im_r_ilinmom_ind(in_im_r_ilinmom_comp);
-	      
-	      ave+=(*t.in.front())[i];
-	    }
-  	  ave/=equiv_linmom_combos[out_ilinmom_combo].size();
-  	}
-    }
-}
-
-void perens_t::val_chir_extrap_Zq(perens_t &out) const
-{
-  //slice m
-  vector<double> x(nm);
-  djvec_t y(nm);
-  for(size_t im=0;im<nm;im++)
-    if(pars::chir_extr_method==chir_extr::MQUARK) x[im]=am[im];
-    else                                          x[im]=sqr(meson_mass[im_im_ind({im,im})].ave());
-  
-  for(auto &t : out.get_Zq_tasks({this}))
-    {
-      const djvec_t &Zq=*t.in.front();
-      djvec_t &Zq_chir=*t.out;
-      const string &tag=t.tag;
-      
-      for(size_t ilinmom=0;ilinmom<linmoms.size();ilinmom++)
-	{
-	  //open the plot file if needed
-	  const string plot_path=dir_path+"/plots/chir_extr_"+tag+"_mom_"+to_string(ilinmom)+".xmg";
-	  grace_file_t *plot=nullptr;
-	  if(ilinmom%pars::print_each_mom==0) plot=new grace_file_t(plot_path);
-	  
-	  for(size_t r=0;r<nr;r++)
-	    {
-	      //slice m
-	      djvec_t y(nm);
-	      for(size_t im=0;im<nm;im++)
-		y[im]=Zq[im_r_ilinmom_ind({im,r,ilinmom})];
-	      
-	      //fit, store and write the result
-	      djvec_t coeffs=poly_fit(x,y,1);
-	      Zq_chir[out.im_r_ilinmom_ind({0,r,ilinmom})]=coeffs[0];
-	      if(plot!=nullptr)
-		{
-		  auto xminmax=minmax_element(x.begin(),x.end());
-		  double xmax=*xminmax.second*1.1;
-		  write_fit_plot(*plot,0,xmax,bind(poly_eval<djvec_t>,coeffs,_1),x,y);
-		  plot->write_ave_err(0,coeffs[0].ave_err());
-		}
-	    }
-	  
-	  if(plot!=nullptr) delete plot;
-	}
     }
 }

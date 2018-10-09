@@ -31,10 +31,11 @@ using namespace scan;
 
   void parser_error(YYLTYPE *locp,void *v,const char *err)
   {
+      scan::print_input_files_stack();
       CRASH("exception at line %d columns [%d-%d] %s",locp->first_line,locp->first_column,locp->last_column,err);
   }
-
-  %}
+  
+%}
 
  //union used to catch all symbols
 %union
@@ -43,6 +44,8 @@ using namespace scan;
     double      real;
     int         inte;
     std::vector<std::string> *str_list;
+    comb_extr_t *comb_extr;
+    vector<comb_extr_t> *comb_extr_list;
 }
 
 %token TK_INVALID_STRING
@@ -52,69 +55,138 @@ using namespace scan;
 %token <real> TK_REAL
 %token <inte> TK_INTE
 
+%token TK_A
 %token TK_ACTION
+%token TK_ALLOCATE_IMMEDIATELY
+%token TK_AVERAGE_EQUIV_MOMENTA_IMMEDIATELY
+%token TK_ASSEMBLE_QED_GREENFUNCTIONS
+%token TK_AVERAGE_R_IMMEDIATELY
 %token TK_BC
 %token TK_CHIR_EXTR_METHOD
+%token TK_COMPUTE_BILINEARS
+%token TK_COMPUTE_RI
+%token TK_EXTRAPOLATE
+%token TK_EXTRAPOLATE_TO_0_P2_RANGE
+%token TK_FROM_PROP
+%token TK_FROM_CORR
+%token TK_COMPUTE_DELTAM
 %token TK_COMPUTE_MESLEP
 %token TK_COMPUTE_MESLEP_WITH_CHARGES_ONE
+%token TK_CORRECT_OA2_USING_GTILDE
+%token TK_CORRECT_OA2_USING_PTILDE
 %token TK_ENSEMBLES
 %token TK_FILTER_THRESH
+%token TK_EXTRAPOLATE_TO_0_P2
+%token TK_INTERPOLATE_TO_P2REF
+%token TK_INCLUDE
+%token TK_MATCH_TO_W_REG
+%token TK_MAKE_Z_QED_ABSOLUTE
+%token TK_MEASURE_MPCAC
 %token TK_NF
 %token TK_NJACKS
+%token TK_NMESLEP_OPS
+%token TK_P2REF
 %token TK_PHYS_BASIS
+%token TK_PRINT_Z
 %token TK_PRINT_EACH_MOM
+%token TK_QED_GREENFUNCTIONS_ARE_ASSEMBLED
+%token TK_RECOMPUTE_DELTAM
 %token TK_SCHEME
 %token TK_TWISTED_RUN
+%token TK_INCLUDE_ZQ_CORRECTIONS_IN_BILINEARS
+%token TK_INCLUDE_SELF_ENERGY_IN_BILINEARS
 %token TK_USE_DELTAM_CR_CT
 %token TK_USE_DELTAM_TM_CT
 %token TK_USE_QED
+%token TK_USING
 
-%token TK_AVERAGE
-%token TK_AVERAGE_R
 %token TK_AVERAGE_EQUIV_MOMENTA
-%token TK_COMPUTE_OR_LOAD
+%token TK_AVERAGE_INGREDIENTS
+%token TK_AVERAGE_R
+%token TK_AVERAGE_Z
+%token TK_COMBINED_SEA_CHIR_EXTRAP
+%token TK_COMPUTE_OR_LOAD_INGREDIENTS
+%token TK_COMPUTE_Z
+%token TK_COMPUTE_Z_QCD
 %token TK_EVOLVE
 %token TK_LIST_ENSEMBLES
 %token TK_PLOT_Z
 %token TK_PRINT_DISCR
-%token TK_RATIO_MINUS_ONE
+%token TK_RATIO_Z_MINUS_ONE
 %token TK_SEA_CHIR_EXTRAP
 %token TK_SUBTRACT_OA2
+%token TK_SUBTRACT_Z
+%token TK_SUB_MESON_MASS_SHIFT_WHEN_NO_POLE
 %token TK_VAL_CHIR_EXTRAP
+%token TK_WRITE_CHECKPOINT
 
 %type <str_list> string_list
-
+%type <comb_extr> combined_sea_chir_extr_entry
+%type <comb_extr_list> combined_sea_chir_extr_list
 %%
 
 commands:
         | commands read_ensembles '}'
-        | commands set_action
+ 	| commands include
+	| commands set_action
+	| commands set_allocate_immediately
+	| commands set_average_equiv_momenta_immediately
+	| commands set_average_r_immediately
         | commands set_boundary_conditions
         | commands set_chir_extr_method
+        | commands set_compute_bilinears
+        | commands set_compute_ri
         | commands set_compute_meslep
+        | commands set_compute_deltam
         | commands set_compute_meslep_with_charges_one
+	| commands set_correct_Oa2_using_gtilde
+	| commands set_correct_Oa2_using_ptilde
+        | commands set_extrapolate_to_0_p2_range
         | commands set_filter_thresh
+	| commands set_measure_mPCAC
         | commands set_nf
         | commands set_njacks
+        | commands set_nmeslep_ops
+        | commands set_p2ref
         | commands set_phys_basis
         | commands set_print_each_mom
         | commands set_scheme
         | commands set_twisted_run
         | commands set_use_QED
+        | commands set_include_Zq_corrections_in_bilinears
+        | commands set_include_self_energy_in_bilinears
+	| commands set_sub_meson_mass_shift_when_no_pole
         | commands set_use_deltam_cr_ct
         | commands set_use_deltam_tm_ct
-        | commands average
+        | commands average_ingredients
         | commands average_r
+        | commands average_Z
         | commands average_equiv_momenta
         | commands sea_chir_extrap
+        | commands evolve
+        | commands assemble_QED_greenfunctions
+        | commands QED_greenfunctions_are_assembled
+        | commands match_to_W_reg
+        | commands combined_sea_chir_extr
         | commands val_chir_extrap
         | commands plot_Z
+        | commands print_Z
+	| commands make_Z_QED_absolute
         | commands print_discr
-        | commands ratio_minus_one
-        | commands compute_or_load
+        | commands recompute_deltam
+        | commands ratio_Z_minus_one
+        | commands compute_or_load_ingredients
+        | commands compute_Z
+        | commands compute_Z_QCD
         | commands list_ensembles
-        /* | commands TK_QUOTED_TEXT '=' TK_SUBTRACT_OA2 '(' TK_QUOTED_TEXT ')' {drv->ing[*$6].subtract_Oa2(true);drv->suff+="_sub";} */
-        /* | commands TK_QUOTED_TEXT '=' TK_EVOLVE '(' TK_QUOTED_TEXT ')' {drv->ing[*$6].evolve();drv->suff+="_evo";} aggiungi ordine qui*/
+        | commands extrapolate_to_0_p2
+        | commands interpolate_to_p2ref
+        | commands subtract_Oa2
+        | commands subtract_Z
+	| commands write_checkpoint
+;
+
+include: TK_INCLUDE '(' TK_QUOTED_TEXT ')' {scan::include(*$3);delete $3;}
 ;
 
 read_ensembles: TK_ENSEMBLES '=' '{'
@@ -122,12 +194,21 @@ read_ensembles: TK_ENSEMBLES '=' '{'
               | read_ensembles ',' ensemble
 ;
 
-ensemble: TK_QUOTED_TEXT {pars::ens.push_back(*$1);delete $1;}
+ensemble: TK_QUOTED_TEXT {add_ens(*$1);delete $1;}
 ;
 
 /////////////////////////////////////////////////////////////////
 
 set_action: TK_ACTION '=' TK_QUOTED_TEXT {pars::act=gaz::decrypt(*$3);delete $3;}
+;
+
+set_average_equiv_momenta_immediately: TK_AVERAGE_EQUIV_MOMENTA_IMMEDIATELY '=' TK_INTE {pars::average_equiv_momenta_immediately=$3;}
+;
+
+set_allocate_immediately: TK_ALLOCATE_IMMEDIATELY '=' TK_INTE {pars::allocate_immediately=$3;}
+;
+
+set_average_r_immediately: TK_AVERAGE_R_IMMEDIATELY '=' TK_INTE {pars::average_r_immediately=$3;}
 ;
 
 set_boundary_conditions: TK_BC '=' TK_QUOTED_TEXT
@@ -139,7 +220,23 @@ set_boundary_conditions: TK_BC '=' TK_QUOTED_TEXT
 			 }
 ;
 
+set_correct_Oa2_using_gtilde: TK_CORRECT_OA2_USING_GTILDE '=' TK_INTE {pars::correct_Oa2_using_gtilde=$3;}
+;
+
+set_correct_Oa2_using_ptilde: TK_CORRECT_OA2_USING_PTILDE '=' TK_INTE {pars::correct_Oa2_using_ptilde=$3;}
+;
+
 set_chir_extr_method: TK_CHIR_EXTR_METHOD '=' TK_QUOTED_TEXT {pars::chir_extr_method=chir_extr::decrypt(*$3);delete $3;}
+;
+
+set_compute_bilinears: TK_COMPUTE_BILINEARS '=' TK_INTE {pars::compute_bilinears=$3;}
+;
+
+set_compute_ri: TK_COMPUTE_RI '=' TK_INTE {pars::compute_ri=$3;}
+;
+
+set_compute_deltam: TK_COMPUTE_DELTAM '=' TK_FROM_PROP {pars::deltam_method=pars::FROM_PROP;}
+                  | TK_COMPUTE_DELTAM '=' TK_FROM_CORR {pars::deltam_method=pars::FROM_CORR;}
 ;
 
 set_compute_meslep: TK_COMPUTE_MESLEP '=' TK_INTE {pars::compute_meslep=$3;}
@@ -148,13 +245,22 @@ set_compute_meslep: TK_COMPUTE_MESLEP '=' TK_INTE {pars::compute_meslep=$3;}
 set_compute_meslep_with_charges_one: TK_COMPUTE_MESLEP_WITH_CHARGES_ONE {using namespace meslep;ql=q_in=q_ou=1.0;}
 ;
 
+set_extrapolate_to_0_p2_range: TK_EXTRAPOLATE_TO_0_P2_RANGE '=' '{' TK_REAL ',' TK_REAL '}' {pars::extrapolate_to_0_p2_range={$4,$6};}
+;
+
 set_filter_thresh: TK_FILTER_THRESH '=' TK_REAL {pars::filter_thresh=$3;}
+;
+
+set_measure_mPCAC: TK_MEASURE_MPCAC '=' TK_INTE {pars::report_mPCAC=$3;}
 ;
 
 set_nf: TK_NF '=' TK_INTE {evol::Nf_t_of_Nf($3);}
 ;
 
 set_njacks: TK_NJACKS '=' TK_INTE {set_njacks($3);}
+;
+
+set_nmeslep_ops: TK_NMESLEP_OPS '=' TK_INTE {meslep::set_nZops($3);}
 ;
 
 set_phys_basis: TK_PHYS_BASIS '=' TK_INTE {pars::phys_basis=$3;}
@@ -169,27 +275,70 @@ set_scheme: TK_SCHEME '=' TK_QUOTED_TEXT {pars::scheme=reno_scheme::decrypt(*$3)
 set_twisted_run: TK_TWISTED_RUN '=' TK_INTE {pars::twisted_run=$3;if($3==false) pars::phys_basis=false;}
 ;
 
+set_p2ref: TK_P2REF '=' TK_REAL {pars::p2ref=$3;}
+;
+
+set_include_self_energy_in_bilinears: TK_INCLUDE_SELF_ENERGY_IN_BILINEARS '=' TK_INTE {pars::include_self_energy_in_bilinears=$3;}
+;
+
+set_include_Zq_corrections_in_bilinears: TK_INCLUDE_ZQ_CORRECTIONS_IN_BILINEARS '=' TK_INTE {pars::include_Zq_corrections_in_bilinears=$3;}
+;
+
+set_sub_meson_mass_shift_when_no_pole: TK_SUB_MESON_MASS_SHIFT_WHEN_NO_POLE '=' TK_INTE {pars::sub_meson_mass_shift_when_no_pole=$3;}
+;
+
 set_use_deltam_cr_ct: TK_USE_DELTAM_CR_CT '=' TK_INTE {pars::use_deltam_cr_ct=$3;}
 ;
 
 set_use_deltam_tm_ct: TK_USE_DELTAM_TM_CT '=' TK_INTE {pars::use_deltam_tm_ct=$3;}
 ;
 
-set_use_QED: TK_USE_QED '=' TK_INTE {pars::use_QED=$3;}
+set_use_QED: TK_USE_QED '=' TK_INTE {pars::set_use_QED($3);}
 ;
 
 /////////////////////////////////////////////////////////////////
 
-compute_or_load: TK_COMPUTE_OR_LOAD '(' ')' {compute_or_load_all();}
+compute_or_load_ingredients: TK_COMPUTE_OR_LOAD_INGREDIENTS '(' ')' {compute_or_load_all_ingredients();}
+;
+
+recompute_deltam: TK_RECOMPUTE_DELTAM '(' ')' {recompute_deltam_all();}
+;
+
+compute_Z: TK_COMPUTE_Z '(' ')' {compute_Z_all();}
+;
+
+compute_Z_QCD: TK_COMPUTE_Z_QCD '(' ')' {compute_Z_QCD_all();}
 ;
 
 plot_Z: TK_PLOT_Z '(' TK_QUOTED_TEXT ')' {plot_all_Z(*$3);delete $3;}
 ;
 
+print_Z: TK_PRINT_Z '(' TK_QUOTED_TEXT ')' {print_all_Z(*$3);delete $3;}
+;
+
 print_discr: TK_PRINT_DISCR '(' ')' {print_discr();}
 ;
 
+make_Z_QED_absolute: TK_MAKE_Z_QED_ABSOLUTE '(' ')' {make_Z_QED_absolute();}
+;
+
 average_r: TK_AVERAGE_R '(' ')' {average_all_r();}
+;
+
+subtract_Oa2: TK_SUBTRACT_OA2 '(' ')' {subtract_Oa2_all();}
+;
+
+assemble_QED_greenfunctions: TK_ASSEMBLE_QED_GREENFUNCTIONS '(' ')' {assemble_all_QED_greenfunctions();}
+;
+
+QED_greenfunctions_are_assembled: TK_QED_GREENFUNCTIONS_ARE_ASSEMBLED '(' ')' {validate_assembled_QED_greenfunctions();}
+;
+
+;
+evolve: TK_EVOLVE '(' ')' {evolve_all();}
+;
+
+match_to_W_reg: TK_MATCH_TO_W_REG '(' ')' {match_to_W_reg_all();}
 ;
 
 average_equiv_momenta: TK_AVERAGE_EQUIV_MOMENTA '(' ')' {average_all_equiv_momenta();}
@@ -198,16 +347,44 @@ average_equiv_momenta: TK_AVERAGE_EQUIV_MOMENTA '(' ')' {average_all_equiv_momen
 val_chir_extrap: TK_VAL_CHIR_EXTRAP '(' ')' {val_chir_extrap_all();}
 ;
 
+write_checkpoint: TK_WRITE_CHECKPOINT '(' ')' {write_checkpoint_all();}
+;
+
 /////////////////////////////////////////////////////////////////
 
-average: TK_QUOTED_TEXT '=' TK_AVERAGE '(' TK_QUOTED_TEXT ',' TK_QUOTED_TEXT ')' {average(*$1,*$5,*$7);delete $1;delete $5;delete $7;}
+average_Z: TK_QUOTED_TEXT '=' TK_AVERAGE_Z '(' TK_QUOTED_TEXT ',' TK_QUOTED_TEXT ')' {average_Z(*$1,*$5,*$7);delete $1;delete $5;delete $7;}
+;
 
-ratio_minus_one: TK_QUOTED_TEXT '=' TK_RATIO_MINUS_ONE '(' TK_QUOTED_TEXT ',' TK_QUOTED_TEXT ')' {ratio_minus_one(*$1,*$5,*$7);delete $1;delete $5;delete $7;}
+average_ingredients: TK_QUOTED_TEXT '=' TK_AVERAGE_INGREDIENTS '(' TK_QUOTED_TEXT ',' TK_QUOTED_TEXT ')' {average_ingredients(*$1,*$5,*$7);delete $1;delete $5;delete $7;}
+;
+
+combined_sea_chir_extr_entry: TK_USING TK_A '=' TK_REAL TK_EXTRAPOLATE TK_QUOTED_TEXT '=' string_list {$$=new comb_extr_t(*$6,$4,*$8);delete $6;delete $8;}
+;
+
+combined_sea_chir_extr_list: TK_COMBINED_SEA_CHIR_EXTRAP '(' combined_sea_chir_extr_entry {$$=new std::vector<comb_extr_t>({*$3});delete $3;}
+                           | combined_sea_chir_extr_list combined_sea_chir_extr_entry {$$->push_back(*$2);delete $2;}
+;
+
+combined_sea_chir_extr: combined_sea_chir_extr_list ')' {combined_sea_chir_extrap(*$1);delete $1;}
+;
+
+ratio_Z_minus_one: TK_QUOTED_TEXT '=' TK_RATIO_Z_MINUS_ONE '(' TK_QUOTED_TEXT ',' TK_QUOTED_TEXT ')' {ratio_Z_minus_one(*$1,*$5,*$7);delete $1;delete $5;delete $7;}
+;
 
 sea_chir_extrap: TK_QUOTED_TEXT '=' TK_SEA_CHIR_EXTRAP '(' string_list ')' {sea_chir_extrap(*$1,*$5);delete $1;delete $5;}
 ;
 
+subtract_Z: TK_QUOTED_TEXT '=' TK_SUBTRACT_Z '(' TK_QUOTED_TEXT ',' TK_QUOTED_TEXT ')' {subtract_Z(*$1,*$5,*$7);delete $1;delete $5;delete $7;}
+;
+
+
 list_ensembles: TK_LIST_ENSEMBLES '(' ')' {list_ensembles();}
+;
+
+interpolate_to_p2ref: TK_INTERPOLATE_TO_P2REF '(' ')' {interpolate_to_p2ref_all();}
+;
+
+extrapolate_to_0_p2: TK_EXTRAPOLATE_TO_0_P2 '(' ')' {extrapolate_to_0_p2_all();}
 ;
 
 /////////////////////////////////////////////////////////////////

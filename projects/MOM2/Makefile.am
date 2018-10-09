@@ -27,13 +27,14 @@ __top_builddir__bin_mom_SOURCES= \
 	%D%/geometry.cpp \
 	%D%/meson_mass.cpp \
 	%D%/mom.cpp \
-	%D%/p2eq0extrap.cpp \
 	%D%/pars.cpp \
 	%D%/perens.cpp \
+	%D%/pr_bil.cpp \
+	%D%/pr_meslep.cpp \
 	%D%/prop.cpp \
 	%D%/scan.cpp \
+	%D%/sigma.cpp \
 	%D%/timings.cpp \
 	%D%/Zbil.cpp \
 	%D%/Zmeslep.cpp \
-	%D%/Zq.cpp \
-	%D%/Zq_sig1.cpp
+	%D%/Zq.cpp

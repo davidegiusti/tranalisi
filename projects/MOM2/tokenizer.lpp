@@ -44,6 +44,7 @@ CPP_COMM {CPP_COMM_BEG}(({ANY}-a)|{NEWLINE})*{CPP_COMM_END}
 
 #include <tranalisi.hpp>
 
+#include <MOM2/analysis.hpp>
 #include <scan.hpp>
 
 using namespace std;
@@ -52,12 +53,7 @@ using namespace std;
 
 #define YY_INPUT(buf,result,max_size)					\
    {									\
-       ifstream &fin=scan::fin;						\
-       fin.get(*buf);							\
-       if(not fin.good() or fin.eof())					\
-	   result=YY_NULL;				                \
-       else								\
-	   result=1;							\
+       scan::lex(buf,result,max_size);					\
    }
 
  /* handle locations */
@@ -83,35 +79,71 @@ using namespace std;
 {C_COMM}                            DEBUG_PRINTF("Ignoring single line (c) comment: %s\n",yytext);
 {SPACE}+                            DEBUG_PRINTF("Ignoring spaces: \"%s\"\n",yytext);
 
+A                                   DEBUG_PRINTF("Found A\n");return TK_A;
+Abort                               DEBUG_PRINTF("Found Abort\n");terminate();
 Action                              DEBUG_PRINTF("Found Action\n");return TK_ACTION;
+AllocateImmediately                 DEBUG_PRINTF("Found AllocateImmediately");return TK_ALLOCATE_IMMEDIATELY;
+AssembleQEDGreenfunctions           DEBUG_PRINTF("Found AssembleQEDGreenfunctions\n");return TK_ASSEMBLE_QED_GREENFUNCTIONS;
+AverageRImmediately                 DEBUG_PRINTF("Found AverageRImmediately\n");return TK_AVERAGE_R_IMMEDIATELY;
+AverageEquivMomentaImmediately      DEBUG_PRINTF("Found AverageEquivMomentaImmediately\n");return TK_AVERAGE_EQUIV_MOMENTA_IMMEDIATELY;
 BC                                  DEBUG_PRINTF("Found BC\n");return TK_BC;
 ChirExtrMethod                      DEBUG_PRINTF("Found ChirExtrMethod\n");return TK_CHIR_EXTR_METHOD;
+ComputeBilinears                    DEBUG_PRINTF("Found ComputeBilinears\n");return TK_COMPUTE_BILINEARS;
+ComputeRi                           DEBUG_PRINTF("Found ComputeRi\n");return TK_COMPUTE_RI;
+ComputeDeltaM                       DEBUG_PRINTF("Found ComputeDeltaM\n");return TK_COMPUTE_DELTAM;
 ComputeMeslep                       DEBUG_PRINTF("Found ComputeMeslep\n");return TK_COMPUTE_MESLEP;
 ComputeMeslepWithChargesOne         DEBUG_PRINTF("Found ComputeMeslepWithChargesOne\n");return TK_COMPUTE_MESLEP_WITH_CHARGES_ONE;
 Ensembles                           DEBUG_PRINTF("Found Ensembles\n");return TK_ENSEMBLES;
+Extrapolate                         DEBUG_PRINTF("Found Extrapolate\n");return TK_EXTRAPOLATE;
 FilterThresh                        DEBUG_PRINTF("Found FilterThresh\n");return TK_FILTER_THRESH;
+FromCorr                            DEBUG_PRINTF("Found FromCorr\n");return TK_FROM_CORR;
+FromProp                            DEBUG_PRINTF("Found FromProp\n");return TK_FROM_PROP;
+QEDGreenfunctionsAreAssembled       DEBUG_PRINTF("Found QEDGreenfunctionsAreAssembled\n");return TK_QED_GREENFUNCTIONS_ARE_ASSEMBLED;
 NJacks                              DEBUG_PRINTF("Found NJacks\n");return TK_NJACKS;
 NF                                  DEBUG_PRINTF("Found NF\n");return TK_NF;
+NMeslepOps                          DEBUG_PRINTF("Found NMeslepOps\n");return TK_NMESLEP_OPS;
 PhysBasis                           DEBUG_PRINTF("Found PhysBasis\n");return TK_PHYS_BASIS;
 PrintEachMom                        DEBUG_PRINTF("Found PrintEachMom\n");return TK_PRINT_EACH_MOM;
+RecomputeDeltaM                     DEBUG_PRINTF("Found RecomputeDeltaM\n");return TK_RECOMPUTE_DELTAM;
 Scheme                              DEBUG_PRINTF("Found Scheme\n");return TK_SCHEME;
 TwistedRun                          DEBUG_PRINTF("Found TwistedRun\n");return TK_TWISTED_RUN;
+Using                               DEBUG_PRINTF("Found Using\n");return TK_USING;
+IncludeZqCorrectionsInBilinears     DEBUG_PRINTF("Found IncludeZqCorrectionsInBilinears\n");return TK_INCLUDE_ZQ_CORRECTIONS_IN_BILINEARS;
+IncludeSelfEnergyInBilinears        DEBUG_PRINTF("Found IncludeSelfEnergyInBilinears\n");return TK_INCLUDE_SELF_ENERGY_IN_BILINEARS;
 UseDeltamCrCt                       DEBUG_PRINTF("Found UseDeltamCrCt\n");return TK_USE_DELTAM_CR_CT;
 UseDeltamTmCt                       DEBUG_PRINTF("Found UseDeltamTmCt\n");return TK_USE_DELTAM_TM_CT;
 UseQED                              DEBUG_PRINTF("Found UseQED\n");return TK_USE_QED;
 
-Average                             DEBUG_PRINTF("Found Average\n");return TK_AVERAGE;
-AverageR                            DEBUG_PRINTF("Found AverageR\n");return TK_AVERAGE_R;
 AverageEquivMomenta                 DEBUG_PRINTF("Found AverageEquivMomenta\n");return TK_AVERAGE_EQUIV_MOMENTA;
-ComputeOrLoad                       DEBUG_PRINTF("Found ComputeOrLoad\n");return TK_COMPUTE_OR_LOAD;
+AverageIngredients                  DEBUG_PRINTF("Found AverageIngredients\n");return TK_AVERAGE_INGREDIENTS;
+AverageR                            DEBUG_PRINTF("Found AverageR\n");return TK_AVERAGE_R;
+AverageZ                            DEBUG_PRINTF("Found AverageZ\n");return TK_AVERAGE_Z;
+CombinedSeaChirExtrap               DEBUG_PRINTF("Found CombinedSeaChirExtrap\n");return TK_COMBINED_SEA_CHIR_EXTRAP;
+ComputeOrLoadIngredients            DEBUG_PRINTF("Found ComputeOrLoadIngredients\n");return TK_COMPUTE_OR_LOAD_INGREDIENTS;
+ComputeZ                            DEBUG_PRINTF("Found ComputeZ\n");return TK_COMPUTE_Z;
+ComputeZQCD                         DEBUG_PRINTF("Found ComputeZQCD\n");return TK_COMPUTE_Z_QCD;
+CorrectOa2UsingGtilde               DEBUG_PRINTF("Found CorrectOa2UsingGtilde\n");return TK_CORRECT_OA2_USING_GTILDE;
+CorrectOa2UsingPTilde               DEBUG_PRINTF("Found CorrectOa2UsingPTilde\n");return TK_CORRECT_OA2_USING_PTILDE;
 Evolve                              DEBUG_PRINTF("Found Evolve\n");return TK_EVOLVE;
+ExtrapolateTo0P2                    DEBUG_PRINTF("Found ExtrapolateTo0P2\n");return TK_EXTRAPOLATE_TO_0_P2;
+ExtrapolateTo0P2Range               DEBUG_PRINTF("Found ExtrapolateTo0P2Range\n");return TK_EXTRAPOLATE_TO_0_P2_RANGE;
+Include                             DEBUG_PRINTF("Found Include\n");return TK_INCLUDE;
+InterpolateToP2Ref                  DEBUG_PRINTF("Found InterpolateToP2Ref\n");return TK_INTERPOLATE_TO_P2REF;
 ListEnsembles                       DEBUG_PRINTF("Found ListEnsembles\n");return TK_LIST_ENSEMBLES;
+MakeZQEDAbsolute                    DEBUG_PRINTF("Founr MakeZQEDAbsolute\n");return TK_MAKE_Z_QED_ABSOLUTE;
+MatchToWReg                         DEBUG_PRINTF("Found MatchToWReg\n");return TK_MATCH_TO_W_REG;
+MeasureMPCAC                        DEBUG_PRINTF("Found MeasureMPCAC\n");return TK_MEASURE_MPCAC;
+P2Ref                               DEBUG_PRINTF("Fount P2Ref\n"); return TK_P2REF;
 PlotZ                               DEBUG_PRINTF("Found PlotZ\n");return TK_PLOT_Z;
 PrintDiscr                          DEBUG_PRINTF("Found PrintDiscr\n");return TK_PRINT_DISCR;
-RatioMinusOne                       DEBUG_PRINTF("Found RatioMinusOne\n");return TK_RATIO_MINUS_ONE;
+PrintZ                              DEBUG_PRINTF("Found PrintZ\n");return TK_PRINT_Z;
+RatioZMinusOne                      DEBUG_PRINTF("Found RatioZMinusOne\n");return TK_RATIO_Z_MINUS_ONE;
 SeaChirExtrap                       DEBUG_PRINTF("Found SeaChirExtrap\n");return TK_SEA_CHIR_EXTRAP;
+SubMesonMassShiftWhenNoPole         DEBUG_PRINTF("Found SubMesonMassShiftWhenNoPole\n");return TK_SUB_MESON_MASS_SHIFT_WHEN_NO_POLE;
 SubtractOa2                         DEBUG_PRINTF("Found SubtractOa2\n");return TK_SUBTRACT_OA2;
+SubtractZ                           DEBUG_PRINTF("Found SubtractZ\n");return TK_SUBTRACT_Z;
 ValChirExtrap                       DEBUG_PRINTF("Found ValChirExtrap\n");return TK_VAL_CHIR_EXTRAP;
+WriteCheckPoint                     DEBUG_PRINTF("Found WriteCheckpoint\n");return TK_WRITE_CHECKPOINT;
 
 =                                   return '=';
 \(                                  return '(';

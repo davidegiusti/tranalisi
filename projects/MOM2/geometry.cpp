@@ -64,6 +64,20 @@ void perens_t::set_comp_list_of_moms(const string &mom_list_path,double filter_t
   cout<<"NFiltered moms (p4/p2^2<"<<filter_thresh<<"): "<<nthresh<<endl;
 }
 
+void perens_t::write_comp_list_of_moms(const string &mom_list_path) const
+{
+  //open the file to write
+  ofstream mom_file(mom_list_path);
+  if(not mom_file.good()) CRASH("Unable to open %s",mom_list_path.c_str());
+  
+  for(const auto &l : linmoms)
+    {
+      const imom_t &c=all_moms[l[0]];
+      for(auto &ci : c) mom_file<<ci<<" ";
+      mom_file<<endl;
+    }
+}
+
 size_t perens_t::get_mir_mom(size_t imom,size_t imir)
 {
   coords_t cm=all_moms[imom];
