@@ -257,7 +257,7 @@ void perens_t::bin_write_ingredients(raw_file_t &file)
     t->bin_write(file);
 }
 
-perens_t perens_t::average_r() const
+perens_t perens_t::average_r(const array<double,2> w) const
 {
   perens_t out=*this;
   
@@ -272,15 +272,22 @@ perens_t perens_t::average_r() const
       out.set_indices();
       out.allocate();
       
-      average_r_sigma(out);
-      average_r_pr_bil(out);
-      average_r_pr_meslep(out);
-      average_r_deltam(out);
+      average_r_sigma(out,w);
+      average_r_pr_bil(out,w);
+      average_r_pr_meslep(out,w);
+      average_r_deltam(out,w);
       
       flush_unused_memory();
   }
   
   return out;
+}
+
+perens_t perens_t::select_r(const size_t r) const
+{
+  array<array<double,2>,2> w={array<double,2>{2,0},array<double,2>{0,2}};
+  
+  return average_r(w[r]);
 }
 
 perens_t perens_t::val_chir_extrap() const
@@ -400,9 +407,12 @@ perens_t perens_t::assemble_QED_greenfunctions() const
 {
   perens_t out=*this;
   
-  out.assemble_sigma_QED_greenfunctions();
-  if(pars::compute_bilinears) out.assemble_pr_bil_QED_greenfunctions();
-  if(pars::compute_meslep) out.assemble_pr_meslep_QED_greenfunctions();
+  if(pars::use_QED)
+    {
+      out.assemble_sigma_QED_greenfunctions();
+      if(pars::compute_bilinears) out.assemble_pr_bil_QED_greenfunctions();
+      if(pars::compute_meslep) out.assemble_pr_meslep_QED_greenfunctions();
+    }
   
   return out;
 }
@@ -467,6 +477,25 @@ void perens_t::print_Z(ofstream& file)
 	file<<" "<<bil_tag[ibil]<<": "<<smart_print((*t.out)[ibil])<<endl;
       file<<endl;
     }
+  
+  if(pars::plot_Zs_fr_Zp)
+    {
+      file<<"WI"<<endl;
+      
+      const djack_t &ZS=Zbil[iS];
+      const djack_t &ZP=Zbil[iP];
+      const djack_t ZS_fr_ZP=ZS/ZP;
+      file<<" S/P: "<<smart_print(ZS_fr_ZP)<<endl;
+      
+      if(pars::use_QED)
+	{
+	  const djack_t &ZS_QED_rel=Zbil_QED_rel[iS];
+	  const djack_t &ZP_QED_rel=Zbil_QED_rel[iP];
+	  const djack_t ZS_fr_ZP_QED_rel=ZS_QED_rel-ZP_QED_rel;
+	  file<<" S/P_QED_rel: "<<smart_print(ZS_fr_ZP_QED_rel)<<endl;
+	}
+      file<<endl;
+  }
   
   /////////////////////////////////////////////////////////////////
   file<<"/////////////////////////////////////////////////////////////////"<<endl;

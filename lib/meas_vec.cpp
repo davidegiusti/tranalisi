@@ -13,6 +13,7 @@ djvec_t read_conf_set_t(const string &template_path,vector<size_t> &id_list,size
   
   //get the list of existing files
   size_t clust_size=trim_to_njacks_multiple(id_list);
+  cout<<"Clust size: "<<clust_size<<endl;
   
   //open all files
   vector<obs_file_t> files;
@@ -31,28 +32,37 @@ djvec_t read_conf_set_t(const string &template_path,vector<size_t> &id_list,size
   if(length!=nblocks*block_nentr) CRASH("Total length is not a multiple of ncols*nlines=%zu",block_nentr);
   
   //! output
+  cout<<"Allocating data"<<endl;
   djvec_t data(length);
   
+  cout<<"Starting to read"<<endl;
 #pragma omp parallel for
   for(size_t ijack=0;ijack<njacks;ijack++)
-    for(size_t ifile=ijack*clust_size;ifile<(ijack+1)*clust_size;ifile++)
-      {
-	if(verbosity)
+    {
+      const size_t beg_file=ijack*clust_size;
+      const size_t end_file=(ijack+1)*clust_size;
+      
+      if(verbosity)
+	printf("Block of ijack: %zu, reading from file %zu to %zu\n",ijack,beg_file,end_file);
+      
+      for(size_t ifile=beg_file;ifile<end_file;ifile++)
+	{
 #ifdef USE_OMP
-	printf("Thread %d/%d reading file %zu/%zu\n",omp_get_thread_num(),omp_get_num_threads(),ifile,files.size());
+	  printf("Thread %d/%d reading file %zu/%zu\n",omp_get_thread_num(),omp_get_num_threads(),ifile,files.size());
 #else
-	printf("Reading file %zu/%zu\n",ifile,files.size());
+	  printf("Reading file %zu/%zu\n",ifile,files.size());
 #endif
-	
-	//read all blocks
-	for(size_t iblock=0;iblock<nblocks;iblock++)
-	  {
-	    vector<double> temp=files[ifile].read(nlines);
-	    if(temp.size()!=block_nentr) CRASH("Error reading file %zu, iblock %zu",ifile,iblock);
-	    
-	    //copy
-	    for(size_t ientr=0;ientr<block_nentr;ientr++) data[ientr+block_nentr*iblock][ijack]+=temp[ientr];
-	  }
+	  
+	  //read all blocks
+	  for(size_t iblock=0;iblock<nblocks;iblock++)
+	    {
+	      vector<double> temp=files[ifile].read(nlines);
+	      if(temp.size()!=block_nentr) CRASH("Error reading file %zu, iblock %zu",ifile,iblock);
+	      
+	      //copy
+	      for(size_t ientr=0;ientr<block_nentr;ientr++) data[ientr+block_nentr*iblock][ijack]+=temp[ientr];
+	    }
+	}
     }
   if(verbosity) cout<<"Finished reading"<<endl;
   

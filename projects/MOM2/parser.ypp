@@ -114,6 +114,7 @@ using namespace scan;
 %token TK_PRINT_DISCR
 %token TK_RATIO_Z_MINUS_ONE
 %token TK_SEA_CHIR_EXTRAP
+%token TK_SELECT_R
 %token TK_SUBTRACT_OA2
 %token TK_SUBTRACT_Z
 %token TK_SUB_MESON_MASS_SHIFT_WHEN_NO_POLE
@@ -135,7 +136,7 @@ commands:
         | commands set_boundary_conditions
         | commands set_chir_extr_method
         | commands set_compute_bilinears
-        | commands set_compute_ri
+        | commands set_compute_RI
         | commands set_compute_meslep
         | commands set_compute_deltam
         | commands set_compute_meslep_with_charges_one
@@ -162,6 +163,7 @@ commands:
         | commands average_r
         | commands average_Z
         | commands average_equiv_momenta
+        | commands select_r
         | commands sea_chir_extrap
         | commands evolve
         | commands assemble_QED_greenfunctions
@@ -232,7 +234,7 @@ set_chir_extr_method: TK_CHIR_EXTR_METHOD '=' TK_QUOTED_TEXT {pars::chir_extr_me
 set_compute_bilinears: TK_COMPUTE_BILINEARS '=' TK_INTE {pars::compute_bilinears=$3;}
 ;
 
-set_compute_ri: TK_COMPUTE_RI '=' TK_INTE {pars::compute_ri=$3;}
+set_compute_RI: TK_COMPUTE_RI '=' TK_INTE {pars::compute_RI=$3;}
 ;
 
 set_compute_deltam: TK_COMPUTE_DELTAM '=' TK_FROM_PROP {pars::deltam_method=pars::FROM_PROP;}
@@ -323,6 +325,9 @@ make_Z_QED_absolute: TK_MAKE_Z_QED_ABSOLUTE '(' ')' {make_Z_QED_absolute();}
 ;
 
 average_r: TK_AVERAGE_R '(' ')' {average_all_r();}
+;
+
+select_r: TK_SELECT_R '(' TK_INTE ')' {select_r_all($3);}
 ;
 
 subtract_Oa2: TK_SUBTRACT_OA2 '(' ')' {subtract_Oa2_all();}
